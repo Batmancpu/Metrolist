@@ -7,25 +7,39 @@ package com.metrolist.music.ui.utils
 
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 
 @Composable
 fun LazyListState.isScrollingUp(): Boolean {
-    var previousIndex by remember(this) { androidx.compose.runtime.mutableIntStateOf(firstVisibleItemIndex) }
-    var previousScrollOffset by remember(this) { androidx.compose.runtime.mutableIntStateOf(firstVisibleItemScrollOffset) }
-    return remember(this) {
-        derivedStateOf {
-            if (previousIndex != firstVisibleItemIndex) {
-                previousIndex > firstVisibleItemIndex
-            } else {
-                previousScrollOffset >= firstVisibleItemScrollOffset
-            }.also {
-                previousIndex = firstVisibleItemIndex
-                previousScrollOffset = firstVisibleItemScrollOffset
+    val scrollingUp = remember(this) { mutableStateOf(true) }
+
+    LaunchedEffect(this) {
+        var previousIndex = firstVisibleItemIndex
+        var previousScrollOffset = firstVisibleItemScrollOffset
+
+        snapshotFlow { firstVisibleItemIndex to firstVisibleItemScrollOffset }
+            .distinctUntilChanged()
+            .map { (index, offset) ->
+                val result =
+                    if (previousIndex != index) {
+                        previousIndex > index
+                    } else {
+                        previousScrollOffset >= offset
+                    }
+
+                previousIndex = index
+                previousScrollOffset = offset
+                result
             }
-        }
-    }.value
+            .distinctUntilChanged()
+            .collect { scrollingUp.value = it }
+    }
+
+    return scrollingUp.value
 }

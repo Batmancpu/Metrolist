@@ -1290,7 +1290,7 @@ fun HomeScreen(
                                         .only(WindowInsetsSides.Horizontal)
                                         .asPaddingValues(),
                             ) {
-                                items(featuredPodcasts.distinctBy { it.id }, key = { "home_featured_podcast_${it.id}" }) { podcast ->
+                                items(featuredPodcasts, key = { "home_featured_podcast_${it.id}" }) { podcast ->
                                     ytGridItem(podcast)
                                 }
                             }
@@ -1883,7 +1883,7 @@ fun HomeScreen(
                                         contentPadding = PaddingValues(horizontal = 16.dp),
                                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                                     ) {
-                                        items(playlists) { item ->
+                                        items(playlists, key = { "community_playlist_${it.playlist.id}" }) { item ->
                                             CommunityPlaylistCard(
                                                 item = item,
                                                 onClick = {

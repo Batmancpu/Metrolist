@@ -604,7 +604,7 @@ fun SongGridItem(
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.basicMarquee().fillMaxWidth()
+            modifier = Modifier.basicMarquee(iterations = 2, initialDelayMillis = 1000, velocity = 30.dp).fillMaxWidth()
         )
     },
     subtitle = {
@@ -835,7 +835,7 @@ fun AlbumGridItem(
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.basicMarquee().fillMaxWidth()
+            modifier = Modifier.basicMarquee(iterations = 2, initialDelayMillis = 1000, velocity = 30.dp).fillMaxWidth()
         )
     },
      subtitle = {
@@ -1001,7 +1001,7 @@ fun PlaylistGridItem(
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.basicMarquee().fillMaxWidth()
+            modifier = Modifier.basicMarquee(iterations = 2, initialDelayMillis = 1000, velocity = 30.dp).fillMaxWidth()
         )
     },
     subtitle = {
@@ -1272,7 +1272,7 @@ fun YouTubeGridItem(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = if (item is ArtistItem) TextAlign.Center else TextAlign.Start,
-            modifier = Modifier.basicMarquee().fillMaxWidth()
+            modifier = Modifier.basicMarquee(iterations = 2, initialDelayMillis = 1000, velocity = 30.dp).fillMaxWidth()
         )
     },
      subtitle = {
@@ -1478,7 +1478,16 @@ fun ItemThumbnail(
     thumbnailRatio: Float = 1f
 ) {
     val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
-    
+    val context = LocalContext.current
+    val imageRequest = remember(context, thumbnailUrl) {
+        ImageRequest.Builder(context)
+            .data(thumbnailUrl?.resize(544, 544))
+            .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
+            .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
+            .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
+            .build()
+    }
+
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
@@ -1488,12 +1497,7 @@ fun ItemThumbnail(
     ) {
         if (albumIndex == null) {
             AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(thumbnailUrl?.resize(544, 544))
-                    .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
-                    .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
-                    .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
-                    .build(),
+                model = imageRequest,
                 contentDescription = null,
                 contentScale = if (cropAlbumArt) ContentScale.Crop else ContentScale.Fit,
                 modifier = Modifier
@@ -1560,7 +1564,16 @@ fun LocalThumbnail(
     thumbnailRatio: Float = 1f
 ) {
     val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
-    
+    val context = LocalContext.current
+    val imageRequest = remember(context, thumbnailUrl) {
+        ImageRequest.Builder(context)
+            .data(thumbnailUrl)
+            .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
+            .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
+            .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
+            .build()
+    }
+
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
@@ -1568,12 +1581,7 @@ fun LocalThumbnail(
             .clip(shape)
     ) {
         AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current)
-                .data(thumbnailUrl)
-                .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
-                .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
-                .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
-                .build(),
+            model = imageRequest,
             contentDescription = null,
             contentScale = if (cropAlbumArt) ContentScale.Crop else ContentScale.Fit,
             modifier = Modifier.fillMaxSize()

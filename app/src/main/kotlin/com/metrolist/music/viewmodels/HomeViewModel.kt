@@ -578,29 +578,30 @@ class HomeViewModel @Inject constructor(
     private val _isLoadingMore = MutableStateFlow(false)
     fun loadMoreYouTubeItems(continuation: String?) {
         if (continuation == null || _isLoadingMore.value) return
-        val hideExplicit = context.dataStore.get(HideExplicitKey, false)
-        val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
-        val hideYoutubeShorts = context.dataStore.get(HideYoutubeShortsKey, false)
+        // Set the guard before dispatching so near-end scroll events cannot queue duplicate requests.
+        _isLoadingMore.value = true
 
         viewModelScope.launch(Dispatchers.IO) {
-            _isLoadingMore.value = true
-            val nextSections = YouTube.home(continuation).getOrNull() ?: run {
-                _isLoadingMore.value = false
-                return@launch
-            }
+            try {
+                val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+                val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
+                val hideYoutubeShorts = context.dataStore.get(HideYoutubeShortsKey, false)
+                val nextSections = YouTube.home(continuation).getOrNull() ?: return@launch
 
-            homePage.value = nextSections.copy(
-                chips = homePage.value?.chips,
-                sections = (homePage.value?.sections.orEmpty() + nextSections.sections).mapNotNull { section ->
-                    val filteredItems = section.items
-                        .filterOutNulls()
-                        .filterExplicit(hideExplicit)
-                        .filterVideoSongs(hideVideoSongs)
-                        .filterYoutubeShorts(hideYoutubeShorts)
-                    if (filteredItems.isEmpty()) null else section.copy(items = filteredItems)
-                }
-            )
-            _isLoadingMore.value = false
+                homePage.value = nextSections.copy(
+                    chips = homePage.value?.chips,
+                    sections = (homePage.value?.sections.orEmpty() + nextSections.sections).mapNotNull { section ->
+                        val filteredItems = section.items
+                            .filterOutNulls()
+                            .filterExplicit(hideExplicit)
+                            .filterVideoSongs(hideVideoSongs)
+                            .filterYoutubeShorts(hideYoutubeShorts)
+                        if (filteredItems.isEmpty()) null else section.copy(items = filteredItems)
+                    }
+                )
+            } finally {
+                _isLoadingMore.value = false
+            }
         }
     }
 
