@@ -915,6 +915,20 @@ fun BottomSheetPlayer(
                         PlayerBackgroundStyle.DEFAULT
                     }
                 }
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colorStops = arrayOf(
+                                    0.0f to Color.White.copy(alpha = if (useDarkTheme) 0.10f else 0.18f),
+                                    0.14f to Color.White.copy(alpha = if (useDarkTheme) 0.04f else 0.08f),
+                                    0.55f to Color.Transparent,
+                                    1.0f to Color.Black.copy(alpha = if (useDarkTheme) 0.12f else 0.03f),
+                                ),
+                            ),
+                        ),
+                )
             }
         },
         onDismiss =

@@ -381,7 +381,17 @@ private fun NewMiniPlayer(
                     .offset { IntOffset(offsetXAnimatable.value.roundToInt(), 0) }
                     .clip(RoundedCornerShape(32.dp))
                     .background(color = backgroundColor)
-                    .border(1.dp, outlineColor.copy(alpha = 0.3f), RoundedCornerShape(32.dp))
+                    .border(
+                        width = 1.dp,
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = if (useDarkTheme) 0.34f else 0.56f),
+                                Color.White.copy(alpha = if (useDarkTheme) 0.08f else 0.20f),
+                                outlineColor.copy(alpha = if (useDarkTheme) 0.28f else 0.14f),
+                            ),
+                        ),
+                        shape = RoundedCornerShape(32.dp),
+                    )
                     .clickable(
                         interactionSource = interactionSource,
                         indication = LocalIndication.current,
@@ -425,6 +435,20 @@ private fun NewMiniPlayer(
                 }
                 else -> {}
             }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0.0f to Color.White.copy(alpha = if (useDarkTheme) 0.18f else 0.24f),
+                                0.14f to Color.White.copy(alpha = if (useDarkTheme) 0.05f else 0.09f),
+                                0.50f to Color.Transparent,
+                                1.0f to Color.Black.copy(alpha = if (useDarkTheme) 0.12f else 0.035f),
+                            ),
+                        ),
+                    ),
+            )
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 8.dp),
