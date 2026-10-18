@@ -40,7 +40,8 @@ android {
         applicationId = applicationIdOverride ?: baseApplicationId
         minSdk = 26
         targetSdk = 36
-        versionCode = 153
+        val versionCodeOverride = System.getenv("METROLIST_VERSION_CODE")?.toIntOrNull()?.takeIf { it > 0 }
+        versionCode = versionCodeOverride ?: 153
         versionName = "13.7.0"
         val baseVersionName = requireNotNull(versionName)
         buildConfigField("String", "BASE_VERSION_NAME", "\"$baseVersionName\"")

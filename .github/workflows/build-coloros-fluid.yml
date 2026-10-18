@@ -1,4 +1,4 @@
-name: Build Metrolist Fluid Cloud APK
+name: Build Metrolist Fluid for Obtainium
 
 on:
   workflow_dispatch:
@@ -22,8 +22,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  signing_check:
+    name: Check persistent signing configuration
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - name: Check required Actions secrets
+        id: check
+        shell: bash
+        env:
+          FLUID_KEYSTORE_BASE64: ${{ secrets.FLUID_KEYSTORE_BASE64 }}
+          FLUID_KEYSTORE_PASSWORD: ${{ secrets.FLUID_KEYSTORE_PASSWORD }}
+        run: |
+          if [[ -n "$FLUID_KEYSTORE_BASE64" && -n "$FLUID_KEYSTORE_PASSWORD" ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=One-time setup required::Add repository Actions secrets FLUID_KEYSTORE_BASE64 and FLUID_KEYSTORE_PASSWORD, then run this workflow once. Gradle was not started."
+          fi
+
   build:
-    name: Build ColorOS 15 APK
+    needs: signing_check
+    if: needs.signing_check.outputs.ready == 'true'
+    name: Build and publish normal release
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
@@ -42,22 +64,15 @@ jobs:
         with:
           cache-cleanup: on-success
 
-      - name: Prepare debug signing key on clean runners
+      - name: Restore persistent signing key
         shell: bash
+        env:
+          FLUID_KEYSTORE_BASE64: ${{ secrets.FLUID_KEYSTORE_BASE64 }}
+          FLUID_KEYSTORE_PASSWORD: ${{ secrets.FLUID_KEYSTORE_PASSWORD }}
         run: |
           set -euo pipefail
-          mkdir -p "$HOME/.android"
-          if [ ! -f "$HOME/.android/debug.keystore" ]; then
-            keytool -genkeypair -v \
-              -keystore "$HOME/.android/debug.keystore" \
-              -storepass android \
-              -alias androiddebugkey \
-              -keypass android \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -dname "CN=Metrolist Fluid CI,O=Metrolist,C=IN"
-          fi
+          printf '%s' "$FLUID_KEYSTORE_BASE64" | base64 --decode > app/fluid-release.keystore
+          keytool -list -keystore app/fluid-release.keystore -storepass "$FLUID_KEYSTORE_PASSWORD" -alias fluidrelease >/dev/null
 
       - name: Build package-renamed, updater-free APK
         run: |
@@ -67,11 +82,18 @@ jobs:
           METROLIST_APPLICATION_ID: com.spotify.music
           METROLIST_APP_NAME: Metrolist Fluid
           METROLIST_BUILD_COMMIT: ${{ github.sha }}
+          METROLIST_VERSION_CODE: ${{ 1000 + github.run_number }}
+          METROLIST_DEBUG_KEYSTORE_PATH: fluid-release.keystore
+          METROLIST_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.FLUID_KEYSTORE_PASSWORD }}
+          METROLIST_DEBUG_KEY_ALIAS: fluidrelease
+          METROLIST_DEBUG_KEY_PASSWORD: ${{ secrets.FLUID_KEYSTORE_PASSWORD }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           PULL_REQUEST: "false"
 
-      - name: Verify package ID and prepare release asset
+      - name: Verify package, version code, and prepare release asset
         shell: bash
+        env:
+          EXPECTED_VERSION_CODE: ${{ 1000 + github.run_number }}
         run: |
           set -euo pipefail
           APK="$(find app/build/outputs/apk -type f -name '*.apk' | grep '/izzy/debug/' | head -n 1)"
@@ -80,7 +102,9 @@ jobs:
           test -n "$SDK_ROOT"
           AAPT="$(find "$SDK_ROOT/build-tools" -type f -name aapt | sort -V | tail -n 1)"
           test -n "$AAPT"
-          "$AAPT" dump badging "$APK" | grep -F "package: name='com.spotify.music'"
+          BADGING="$("$AAPT" dump badging "$APK")"
+          printf '%s\n' "$BADGING" | grep -F "package: name='com.spotify.music'"
+          printf '%s\n' "$BADGING" | grep -F "versionCode='$EXPECTED_VERSION_CODE'"
           mkdir -p dist
           cp "$APK" dist/Metrolist-Fluid-ColorOS15.apk
           sha256sum dist/Metrolist-Fluid-ColorOS15.apk
@@ -93,24 +117,26 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish installable APK to Releases
+      - name: Publish normal GitHub Release for Obtainium
         uses: softprops/action-gh-release@v2
         with:
           tag_name: coloros-fluid-cloud-${{ github.run_number }}
           name: "Metrolist Fluid — ColorOS 15 build ${{ github.run_number }}"
-          prerelease: true
-          make_latest: false
+          prerelease: false
+          make_latest: true
           overwrite_files: true
           fail_on_unmatched_files: true
           files: dist/Metrolist-Fluid-ColorOS15.apk
           body: |
-            Experimental personal-use build of Metrolist with a Liquid Glass-inspired player surface and package ID `com.spotify.music` to test ColorOS 15 Fluid Cloud / Live Alerts recognition.
+            Personal-use Metrolist fork build, published as a normal GitHub release so Obtainium can track it.
 
-            - Uses the existing Media3 playback session; no separate MusicBridge listener service or notification-listener permission is added.
-            - Uses the Izzy flavor so the built-in updater is disabled and cannot install incompatible upstream builds.
-            - This is a debug-signed APK for device testing. The installation signature may differ from other builds.
-            - Android permits only one installed app per package ID. Uninstall the official Spotify app first if it is installed; do not expect it to coexist.
-            - On ColorOS, check the app's Battery usage settings and enable Allow background activity / unrestricted background use if available. Enable Fluid Cloud or Live Alerts for music in the system notification settings.
-            - Fluid Cloud is controlled by OPPO's system-side allowlist and firmware. Package renaming is a testable compatibility strategy, not a guarantee on every regional build.
+            - Package ID: `com.spotify.music`, verified during CI.
+            - Uses Metrolist's existing Media3 session; no separate MusicBridge listener service or notification-listener permission is added.
+            - Uses the updater-free Izzy variant to prevent an upstream updater from replacing this package.
+            - Every build uses the same persistent signing key stored in repository Actions secrets; do not delete or replace those secrets if you want in-place updates.
+            - The version code is generated from the GitHub Actions run number so each successful update is newer than the previous one.
+            - The earlier prerelease was signed with a temporary CI key. Uninstall that earlier build before installing this first persistently signed release; uninstalling removes its app data.
+            - This package ID matches Spotify, so it cannot coexist with the official Spotify app.
+            - On ColorOS, enable Allow background activity / unrestricted background use if available. Fluid Cloud remains dependent on OPPO's system-side recognition and firmware.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
