@@ -78,7 +78,7 @@ jobs:
           METROLIST_APPLICATION_ID: com.spotify.music
           METROLIST_APP_NAME: Metrolist Fluid
           METROLIST_BUILD_COMMIT: ${{ github.sha }}
-          METROLIST_VERSION_CODE: ${{ 1000 + github.run_number }}
+          METROLIST_BUILD_RUN_NUMBER: ${{ github.run_number }}
           METROLIST_DEBUG_KEYSTORE_PATH: fluid-release.keystore
           METROLIST_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.FLUID_KEYSTORE_PASSWORD }}
           METROLIST_DEBUG_KEY_ALIAS: fluidrelease
@@ -90,9 +90,10 @@ jobs:
         if: ${{ steps.signing_check.outputs.ready == 'true' }}
         shell: bash
         env:
-          EXPECTED_VERSION_CODE: ${{ 1000 + github.run_number }}
+          BUILD_RUN_NUMBER: ${{ github.run_number }}
         run: |
           set -euo pipefail
+          EXPECTED_VERSION_CODE=$((1000 + BUILD_RUN_NUMBER))
           APK="$(find app/build/outputs/apk -type f -name '*.apk' | grep '/izzy/debug/' | head -n 1)"
           test -n "$APK"
           SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
