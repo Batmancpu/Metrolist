@@ -22,14 +22,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  signing_check:
-    name: Check persistent signing configuration
+  build:
+    name: Build and publish normal release
     runs-on: ubuntu-latest
-    outputs:
-      ready: ${{ steps.check.outputs.ready }}
+    timeout-minutes: 25
     steps:
-      - name: Check required Actions secrets
-        id: check
+      - name: Check persistent signing configuration
+        id: signing_check
         shell: bash
         env:
           FLUID_KEYSTORE_BASE64: ${{ secrets.FLUID_KEYSTORE_BASE64 }}
@@ -42,29 +41,25 @@ jobs:
             echo "::notice title=One-time setup required::Add repository Actions secrets FLUID_KEYSTORE_BASE64 and FLUID_KEYSTORE_PASSWORD, then run this workflow once. Gradle was not started."
           fi
 
-  build:
-    needs: signing_check
-    if: needs.signing_check.outputs.ready == 'true'
-    name: Build and publish normal release
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-
-    steps:
       - name: Checkout source
+        if: ${{ steps.signing_check.outputs.ready == 'true' }}
         uses: actions/checkout@v7
 
       - name: Set up JDK 21
+        if: ${{ steps.signing_check.outputs.ready == 'true' }}
         uses: actions/setup-java@v6
         with:
           java-version: "21"
           distribution: "temurin"
 
       - name: Set up Gradle
+        if: ${{ steps.signing_check.outputs.ready == 'true' }}
         uses: gradle/actions/setup-gradle@v5
         with:
           cache-cleanup: on-success
 
       - name: Restore persistent signing key
+        if: ${{ steps.signing_check.outputs.ready == 'true' }}
         shell: bash
         env:
           FLUID_KEYSTORE_BASE64: ${{ secrets.FLUID_KEYSTORE_BASE64 }}
@@ -75,6 +70,7 @@ jobs:
           keytool -list -keystore app/fluid-release.keystore -storepass "$FLUID_KEYSTORE_PASSWORD" -alias fluidrelease >/dev/null
 
       - name: Build package-renamed, updater-free APK
+        if: ${{ steps.signing_check.outputs.ready == 'true' }}
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon --console=plain :app:assembleIzzyDebug --warning-mode summary
@@ -91,6 +87,7 @@ jobs:
           PULL_REQUEST: "false"
 
       - name: Verify package, version code, and prepare release asset
+        if: ${{ steps.signing_check.outputs.ready == 'true' }}
         shell: bash
         env:
           EXPECTED_VERSION_CODE: ${{ 1000 + github.run_number }}
@@ -110,6 +107,7 @@ jobs:
           sha256sum dist/Metrolist-Fluid-ColorOS15.apk
 
       - name: Upload build artifact
+        if: ${{ steps.signing_check.outputs.ready == 'true' }}
         uses: actions/upload-artifact@v7
         with:
           name: Metrolist-Fluid-ColorOS15
@@ -118,6 +116,7 @@ jobs:
           retention-days: 30
 
       - name: Publish normal GitHub Release for Obtainium
+        if: ${{ steps.signing_check.outputs.ready == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: coloros-fluid-cloud-${{ github.run_number }}
