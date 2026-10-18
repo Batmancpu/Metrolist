@@ -42,6 +42,23 @@ jobs:
         with:
           cache-cleanup: on-success
 
+      - name: Prepare debug signing key on clean runners
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.android"
+          if [ ! -f "$HOME/.android/debug.keystore" ]; then
+            keytool -genkeypair -v \
+              -keystore "$HOME/.android/debug.keystore" \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Metrolist Fluid CI,O=Metrolist,C=IN"
+          fi
+
       - name: Build package-renamed, updater-free APK
         run: |
           chmod +x gradlew
