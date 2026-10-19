@@ -124,6 +124,13 @@ android {
             isShrinkResources = true
             isCrunchPngs = false
             isDebuggable = false
+            // Personal CI builds can use a temporary key without persistent signing secrets.
+            signingConfig =
+                if (workflowDebugKeystoreFile != null) {
+                    signingConfigs.getByName("workflowDebug")
+                } else {
+                    signingConfigs.getByName("release")
+                }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
