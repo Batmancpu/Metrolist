@@ -571,30 +571,20 @@ class MainActivity : FragmentActivity() {
 
         LaunchedEffect(enableHighRefreshRate) {
             val window = this@MainActivity.window
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                val layoutParams = window.attributes
+            val modes = window.windowManager.defaultDisplay.supportedModes
+            val preferredRefreshRate =
                 if (enableHighRefreshRate) {
-                    layoutParams.preferredDisplayModeId = 0
+                    modes.maxOfOrNull { it.refreshRate } ?: 0f
                 } else {
-                    val modes = window.windowManager.defaultDisplay.supportedModes
-                    val mode60 =
-                        modes.firstOrNull { kotlin.math.abs(it.refreshRate - 60f) < 1f }
-                            ?: modes.minByOrNull { kotlin.math.abs(it.refreshRate - 60f) }
+                    modes.minByOrNull { kotlin.math.abs(it.refreshRate - 60f) }?.refreshRate ?: 60f
+                }
 
-                    if (mode60 != null) {
-                        layoutParams.preferredDisplayModeId = mode60.modeId
-                    }
-                }
-                window.attributes = layoutParams
-            } else {
-                val params = window.attributes
-                if (enableHighRefreshRate) {
-                    params.preferredRefreshRate = 0f
-                } else {
-                    params.preferredRefreshRate = 60f
-                }
-                window.attributes = params
-            }
+            val layoutParams = window.attributes
+            // A non-zero preferred display mode takes precedence over preferredRefreshRate.
+            // Leave mode selection to Android and request only the intended refresh rate.
+            layoutParams.preferredDisplayModeId = 0
+            layoutParams.preferredRefreshRate = preferredRefreshRate
+            window.attributes = layoutParams
         }
 
         val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
