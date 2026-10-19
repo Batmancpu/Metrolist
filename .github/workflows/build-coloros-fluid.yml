@@ -41,12 +41,12 @@ jobs:
         with:
           cache-cleanup: on-success
 
-      - name: Prepare temporary debug signing key
+      - name: Prepare temporary CI release signing key
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "$HOME/.android"
-          if [ ! -f "$HOME/.android/debug.keystore" ]; then
+          mkdir -p "$RUNNER_TEMP"
+          if [ ! -f "$RUNNER_TEMP/metrolist-fluid.keystore" ]; then
             keytool -genkeypair -v \
               -keystore "$HOME/.android/debug.keystore" \
               -storepass android \
@@ -61,7 +61,7 @@ jobs:
       - name: Build package-renamed, updater-free APK
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon --console=plain :app:assembleIzzyDebug --warning-mode summary
+          ./gradlew --no-daemon --console=plain :app:assembleIzzyRelease --warning-mode summary
         env:
           METROLIST_APPLICATION_ID: com.spotify.music
           METROLIST_APP_NAME: Metrolist Fluid
@@ -69,6 +69,7 @@ jobs:
           METROLIST_BUILD_RUN_NUMBER: ${{ github.run_number }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           PULL_REQUEST: "false"
+          METROLIST_DEBUG_KEYSTORE_PATH: ${{ runner.temp }}/metrolist-fluid.keystore
 
       - name: Verify package, version code, and prepare release asset
         shell: bash
@@ -77,7 +78,7 @@ jobs:
         run: |
           set -euo pipefail
           EXPECTED_VERSION_CODE=$((1000 + BUILD_RUN_NUMBER))
-          APK="$(find app/build/outputs/apk -type f -name '*.apk' | grep '/izzy/debug/' | head -n 1)"
+          APK="$(find app/build/outputs/apk -type f -name '*.apk' | grep '/izzy/release/' | head -n 1)"
           test -n "$APK"
           SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
           test -n "$SDK_ROOT"
@@ -109,11 +110,11 @@ jobs:
           fail_on_unmatched_files: true
           files: dist/Metrolist-Fluid-ColorOS15.apk
           body: |
-            Personal-use prerelease of Metrolist Fluid, including home-feed and scrolling performance improvements.
+            Personal-use prerelease of Metrolist Fluid. This build uses the non-debug, R8-optimized release variant so UI performance can be tested without debug-build overhead.
 
             - Package ID: `com.spotify.music`, verified during CI. This keeps the same package-based Fluid Cloud compatibility strategy already tested on device.
             - Uses the existing Media3 playback session and the updater-free Izzy variant.
-            - No persistent signing secrets are required. Each clean CI run uses a temporary debug-signing key.
+            - No persistent signing secrets are required. Each clean CI run uses a temporary CI signing key for the optimized release APK.
             - Because the signing key changes between builds, Android will not install each build over the previous one. Uninstall the previous Metrolist Fluid prerelease before installing the new APK; uninstalling deletes that app's local data.
             - The version code increases with each CI run.
             - This package ID cannot coexist with the official Spotify app.
