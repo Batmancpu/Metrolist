@@ -48,7 +48,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP"
           if [ ! -f "$RUNNER_TEMP/metrolist-fluid.keystore" ]; then
             keytool -genkeypair -v \
-              -keystore "$HOME/.android/debug.keystore" \
+              -keystore "${RUNNER_TEMP}/metrolist-fluid.keystore" \
               -storepass android \
               -alias androiddebugkey \
               -keypass android \
